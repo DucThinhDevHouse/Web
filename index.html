@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Travel Buddy AI Chatbot</title>
+        <style>
+                body {
+                        font-family: Arial, sans-serif;
+                        background-color: #f4f4f9;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        min-height: 100vh;
+                        margin: 0;
+                }
+
+                .chat-container {
+                        width: 90%;
+                        max-width: 700px;
+                        background: white;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                }
+
+                .chat-history {
+                        flex-grow: 1;
+                        padding: 20px;
+                        max-height: 60vh;
+                        overflow-y: auto;
+                        background-color: #e9f5ff;
+                }
+
+                .message {
+                        margin-bottom: 15px;
+                        display: flex;
+                }
+
+                .user-message {
+                        justify-content: flex-end;
+                }
+
+                .ai-message {
+                        justify-content: flex-start;
+                }
+
+                .message-content {
+                        padding: 10px 15px;
+                        border-radius: 20px;
+                        max-width: 80%;
+                        line-height: 1.5;
+                        white-space: pre-wrap;
+                }
+
+                .user-message .message-content {
+                        background-color: #1a73e8;
+                        color: white;
+                        border-bottom-right-radius: 5px;
+                }
+
+                .ai-message .message-content {
+                        background-color: #f0f0f0;
+                        color: #333;
+                        border-bottom-left-radius: 5px;
+                }
+
+                .chat-input {
+                        display: flex;
+                        border-top: 1px solid #ddd;
+                        padding: 15px;
+                        background: #fff;
+                }
+
+                #user-input {
+                        flex-grow: 1;
+                        padding: 10px;
+                        border: 1px solid #ddd;
+                        border-radius: 20px;
+                        margin-right: 10px;
+                }
+
+                #send-button {
+                        background-color: #1a73e8;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                }
+        </style>
+</head>
+
+<body>
+
+        <div class="chat-container">
+                <div class="chat-history" id="chat-history">
+                        <div class="message ai-message">
+                                <div class="message-content">
+                                        Chào bạn! Tui là Travel Buddy AI. Tui sẵn lòng giúp bạn tìm và so sánh khách
+                                        sạn, hoặc trả lời bất cứ câu hỏi du lịch nào. Bạn muốn tìm khách sạn ở đâu nè?
+                                </div>
+                        </div>
+                </div>
+
+                <div class="chat-input">
+                        <input type="text" id="user-input"
+                                placeholder="Nhập câu hỏi của bạn (ví dụ: 'Khách sạn 4 sao gần biển có hồ bơi')."
+                                onkeypress="handleKeyPress(event)">
+                        <button id="send-button" onclick="sendMessage()">Gửi</button>
+                </div>
+        </div>
+
+        <script>
+                // *** CHÚ Ý: CHỈNH SỬA ĐỊA CHỈ NÀY KHI CHẠY CỤC BỘ ***
+                const API_BASE_URL = 'http://localhost:3000';
+                // Nếu bạn chạy trên máy cục bộ, giữ nguyên 'http://localhost:3000'.
+
+                const chatHistory = document.getElementById('chat-history');
+
+                // Hàm thêm tin nhắn vào lịch sử chat
+                function appendMessage(text, sender) {
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('message', `${sender}-message`);
+                        messageElement.innerHTML = `<div class="message-content">${text}</div>`;
+                        chatHistory.appendChild(messageElement);
+                        chatHistory.scrollTop = chatHistory.scrollHeight; // Cuộn xuống cuối
+                }
+
+                // Xử lý gửi tin nhắn khi nhấn Enter
+                function handleKeyPress(event) {
+                        if (event.key === 'Enter') {
+                                sendMessage();
+                        }
+                }
+
+                // Xử lý logic gửi và nhận tin nhắn
+                async function sendMessage() {
+                        const input = document.getElementById('user-input');
+                        const userText = input.value.trim();
+
+                        if (userText === '') return;
+
+                        // 1. Hiển thị tin nhắn người dùng
+                        appendMessage(userText, 'user');
+                        input.value = '';
+
+                        // 2. Chuẩn bị gọi API
+                        const loadingText = "Tui đang phân tích yêu cầu của bạn đây... 🤔";
+                        appendMessage(loadingText, 'ai');
+                        const aiMessage = chatHistory.lastChild.querySelector('.message-content');
+
+                        try {
+                                // Chúng ta tận dụng Endpoint 'natural-search' để xử lý câu hỏi tổng quát/tìm kiếm
+                                const response = await fetch(`${API_BASE_URL}/api/natural-search`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ userQuery: userText })
+                                });
+
+                                const data = await response.json();
+
+                                if (data.success && data.searchParams) {
+                                        // CẬP NHẬT KẾT QUẢ TÌM KIẾM
+                                        const params = data.searchParams;
+
+                                        // Tạo phản hồi thân thiện dựa trên tham số phân tích được
+                                        let replyText = "Tuyệt vời! Tui đã hiểu ý bạn rồi. ";
+                                        replyText += `Bạn đang muốn tìm khách sạn có: \n`;
+
+                                        if (params.stars) replyText += `- Hạng sao: ${params.stars} sao\n`;
+                                        if (params.location) replyText += `- Khu vực: ${params.location}\n`;
+                                        if (params.amenity) replyText += `- Tiện nghi mong muốn: ${params.amenity}\n`;
+                                        if (params.price_max) replyText += `- Giá tối đa: ${params.price_max.toLocaleString('vi-VN')} VND\n`;
+
+                                        replyText += "\nBây giờ tui sẽ bắt đầu tìm kiếm trong cơ sở dữ liệu của mình (Phần này là nơi code web của bạn sẽ hoạt động). Tui thấy yêu cầu này rất hợp lý đó!";
+
+                                        aiMessage.innerText = replyText;
+
+                                } else {
+                                        // Trường hợp API không phân tích được hoặc có lỗi khác
+                                        aiMessage.innerText = data.message || "Ối, tui đang gặp trục trặc xíu. Bạn hỏi lại tui cách khác nha.";
+                                }
+                        } catch (error) {
+                                // Lỗi kết nối server
+                                aiMessage.innerText = `Lỗi kết nối server Backend. Bạn kiểm tra xem server.js đang chạy chưa nhé! (${error.message})`;
+                        }
+                }
+        </script>
+</body>
+
+</html>
